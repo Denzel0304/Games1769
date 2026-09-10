@@ -170,9 +170,21 @@
     text-shadow:0 1px 0 #b9791a;
   }
   .modal-stock{
-    text-align:center; font-size:16px; color:#cbb6e8; margin-bottom:18px;
+    display:flex; flex-wrap:wrap; justify-content:center; gap:6px;
+    margin-bottom:18px;
   }
-  .modal-stock strong{ color:var(--gold); font-size:20px; }
+  .gold-chip{
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(255,210,74,.12); border:1px solid rgba(255,210,74,.28);
+    border-radius:20px; padding:5px 12px;
+    font-family:'Fredoka',sans-serif; font-size:15px;
+    color:var(--gold); white-space:nowrap;
+  }
+  .gold-chip .chip-num{ font-size:18px; font-weight:700; }
+  .gold-chip .chip-label{ font-size:13px; color:#cbb6e8; }
+  .gold-chip.sm{ padding:3px 8px; }
+  .gold-chip.sm .chip-num{ font-size:13px; }
+  .gold-chip.sm .chip-label{ font-size:11px; }
   .modal-tabs{
     display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:18px;
   }
@@ -244,7 +256,7 @@
     <div class="modal-overlay hidden" id="goldModal">
       <div class="modal-box">
         <div class="modal-title">🪙 금괴 금고</div>
-        <div class="modal-stock" id="modalGoldStock">보유 : <strong id="modalGoldCount">0</strong></div>
+        <div class="modal-stock" id="modalGoldCount"></div>
         <div class="modal-tabs">
           <button class="modal-tab active" id="tabDeposit">입금 (코인→금괴)</button>
           <button class="modal-tab" id="tabWithdraw">출금 (금괴→코인)</button>
@@ -268,9 +280,9 @@
         <div class="modal-section" id="sectionWithdraw">
           <div class="modal-label">출금할 금괴 수 입력 (금괴 단위, 1,000개=상자 1개)</div>
           <div class="modal-input-row" style="gap:8px;align-items:center;">
-            <div style="flex:2;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;">
-              <div style="font-size:10px;color:#cbb6e8;letter-spacing:.5px;margin-bottom:2px;">보유 금괴</div>
-              <div style="font-size:15px;font-family:'Fredoka',sans-serif;color:var(--gold);font-weight:600;" id="withdrawAvailBars">0 개</div>
+            <div style="flex:2;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;justify-content:center;">
+              <div style="font-size:10px;color:#cbb6e8;letter-spacing:.5px;margin-bottom:4px;">보유 금괴</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;" id="withdrawAvailBars"></div>
             </div>
             <input class="modal-input" id="withdrawInput" type="number" min="0" placeholder="입력" style="flex:1;min-width:0;">
           </div>
@@ -634,22 +646,23 @@
   function fmtJo(n){ return Math.floor(n).toLocaleString('en-US'); } // 조 단위 쉼표 포맷
 
   // 금괴 계층: 금괴(1조) 1,000개 = 상자(1경), 상자 1,000개 = 금고(1해)
-  function fmtGoldBars(bars){
-    var BARS_PER_BOX  = 1000; // 금괴 1,000개 = 상자 1개
-    var BOXES_PER_VAULT = 1000; // 상자 1,000개 = 금고 1개
+  function goldChipsHTML(bars, sm){
+    var cls = sm ? 'gold-chip sm' : 'gold-chip';
+    var BARS_PER_BOX    = 1000;
+    var BOXES_PER_VAULT = 1000;
     var vault = Math.floor(bars / (BARS_PER_BOX * BOXES_PER_VAULT));
-    var remainder = bars % (BARS_PER_BOX * BOXES_PER_VAULT);
-    var box  = Math.floor(remainder / BARS_PER_BOX);
-    var bar  = remainder % BARS_PER_BOX;
-    var parts = [];
-    if(vault > 0) parts.push('🏦 금고 ' + vault.toLocaleString('en-US') + '개');
-    if(box  > 0) parts.push('📦 상자 ' + box.toLocaleString('en-US') + '개');
-    if(bar  > 0 || parts.length === 0) parts.push('🪙 금괴 ' + bar.toLocaleString('en-US') + '개');
-    return parts.join(' &nbsp; ');
+    var rem   = bars % (BARS_PER_BOX * BOXES_PER_VAULT);
+    var box   = Math.floor(rem / BARS_PER_BOX);
+    var bar   = rem % BARS_PER_BOX;
+    var html  = '';
+    if(vault > 0) html += '<span class="' + cls + '"><span class="chip-num">' + vault.toLocaleString('en-US') + '</span><span class="chip-label">🏦&nbsp;금고</span></span>';
+    if(box  > 0)  html += '<span class="' + cls + '"><span class="chip-num">' + box.toLocaleString('en-US')   + '</span><span class="chip-label">📦&nbsp;상자</span></span>';
+    if(bar  > 0 || html === '') html += '<span class="' + cls + '"><span class="chip-num">' + bar.toLocaleString('en-US') + '</span><span class="chip-label">🪙&nbsp;금괴</span></span>';
+    return html;
   }
 
   function refreshModalInfo(){
-    modalGoldCount.innerHTML = fmtGoldBars(goldBars);
+    modalGoldCount.innerHTML = goldChipsHTML(goldBars, false);
     var availJoEl = document.getElementById('depositAvailJo');
     if(availJoEl){
       var jo = Math.floor(coins / GOLD_UNIT);
@@ -657,7 +670,7 @@
     }
     var availBarsEl = document.getElementById('withdrawAvailBars');
     if(availBarsEl){
-      availBarsEl.innerHTML = fmtGoldBars(goldBars);
+      availBarsEl.innerHTML = goldChipsHTML(goldBars, true);
     }
   }
 
