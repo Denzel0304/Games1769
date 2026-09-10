@@ -278,7 +278,7 @@
 
         <!-- 출금 섹션 -->
         <div class="modal-section" id="sectionWithdraw">
-          <div class="modal-label">출금할 금괴 수 입력 (금괴 단위, 1,000개=상자 1개)</div>
+          <div class="modal-label">출금할 조 수 입력 (1조 = 금괴 1개)</div>
           <div class="modal-input-row" style="gap:8px;align-items:center;">
             <div style="flex:2;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;justify-content:center;">
               <div style="font-size:10px;color:#cbb6e8;letter-spacing:.5px;margin-bottom:4px;">보유 금괴</div>
@@ -738,19 +738,18 @@
     sectionWithdraw.classList.add('active'); sectionDeposit.classList.remove('active');
   });
 
-  // 입금 계산 (입력값 = 조 단위)
+  // 입금 계산 (입력값 = 조 단위 → 금괴 개수로 변환 후 칩 미리보기)
   depositInput.addEventListener('input', function(){
-    var inputJo = Math.floor(parseFloat(this.value) || 0); // 입력값을 조로 해석
-    var bars = inputJo; // 1조 = 금괴 1개
+    var bars = Math.floor(parseFloat(this.value) || 0);
     var needed = bars * GOLD_UNIT;
     if(bars > 0 && needed <= coins){
-      depositResult.innerHTML = '금괴&nbsp;<strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;개로 변환됩니다';
+      depositResult.innerHTML = goldChipsHTML(bars, false);
       depositConfirm.disabled = false;
     } else if(bars > 0 && needed > coins){
       depositResult.innerHTML = '<span style="color:var(--cherry)">코인이 부족합니다</span>';
       depositConfirm.disabled = true;
     } else {
-      depositResult.innerHTML = '금괴&nbsp;<strong>0</strong>&nbsp;개로 변환됩니다 (최소 1 조)';
+      depositResult.innerHTML = '<span style="color:#cbb6e8;font-size:13px;">최소 1조 이상 입력하세요</span>';
       depositConfirm.disabled = true;
     }
   });
@@ -761,22 +760,22 @@
     if(bars < 1 || needed > coins) return;
     goldBars += bars; saveGold(); updateGoldBadge();
     depositInput.value = '';
-    depositResult.innerHTML = '✅ 금괴&nbsp;<strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;개 저장 완료!';
+    depositResult.innerHTML = '✅ ' + goldChipsHTML(bars, false) + '&nbsp;저장 완료!';
     depositConfirm.disabled = true;
     setCoins(coins - needed, function(){ refreshModalInfo(); });
   });
 
-  // 출금 계산 (입력값 = 금괴 수)
+  // 출금 계산 (입력값 = 조 단위 → 금괴 개수 환산 후 칩 미리보기)
   withdrawInput.addEventListener('input', function(){
     var bars = Math.floor(parseFloat(this.value) || 0);
     if(bars > 0 && bars <= goldBars){
-      withdrawResult.innerHTML = '코인&nbsp;<strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;조로 환전됩니다';
+      withdrawResult.innerHTML = goldChipsHTML(bars, false) + '&nbsp;출금 → <strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;조 코인';
       withdrawConfirm.disabled = false;
     } else if(bars > goldBars){
       withdrawResult.innerHTML = '<span style="color:var(--cherry)">금괴가 부족합니다</span>';
       withdrawConfirm.disabled = true;
     } else {
-      withdrawResult.innerHTML = '코인&nbsp;<strong>0</strong>&nbsp;조로 환전됩니다';
+      withdrawResult.innerHTML = '<span style="color:#cbb6e8;font-size:13px;">출금할 조 수를 입력하세요</span>';
       withdrawConfirm.disabled = true;
     }
   });
@@ -786,7 +785,7 @@
     if(bars < 1 || bars > goldBars) return;
     goldBars -= bars; saveGold(); updateGoldBadge();
     withdrawInput.value = '';
-    withdrawResult.innerHTML = '✅ <strong>' + bars.toLocaleString('en-US') + '</strong> 개 출금, 코인 충전 완료!';
+    withdrawResult.innerHTML = '✅ <strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;조 출금 완료!';
     withdrawConfirm.disabled = true;
     setCoins(coins + bars * GOLD_UNIT, function(){ refreshModalInfo(); });
   });
