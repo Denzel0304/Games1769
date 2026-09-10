@@ -244,7 +244,7 @@
     <div class="modal-overlay hidden" id="goldModal">
       <div class="modal-box">
         <div class="modal-title">🪙 금괴 금고</div>
-        <div class="modal-stock">보유 금괴 : <strong id="modalGoldCount">0</strong> 개 &nbsp;(= <span id="modalGoldWorth">0</span> 조 코인)</div>
+        <div class="modal-stock" id="modalGoldStock">보유 : <strong id="modalGoldCount">0</strong></div>
         <div class="modal-tabs">
           <button class="modal-tab active" id="tabDeposit">입금 (코인→금괴)</button>
           <button class="modal-tab" id="tabWithdraw">출금 (금괴→코인)</button>
@@ -266,7 +266,7 @@
 
         <!-- 출금 섹션 -->
         <div class="modal-section" id="sectionWithdraw">
-          <div class="modal-label">출금할 금괴 수 입력</div>
+          <div class="modal-label">출금할 금괴 수 입력 (금괴 단위, 1,000개=상자 1개)</div>
           <div class="modal-input-row" style="gap:8px;align-items:center;">
             <div style="flex:2;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;">
               <div style="font-size:10px;color:#cbb6e8;letter-spacing:.5px;margin-bottom:2px;">보유 금괴</div>
@@ -615,7 +615,15 @@
   function updateGoldBadge(){
     if(goldBars > 0){
       goldbarBadge.style.display = 'flex';
-      goldbarBadge.textContent = goldBars > 999 ? '999+' : goldBars;
+      var BARS_PER_BOX = 1000, BOXES_PER_VAULT = 1000;
+      var vault = Math.floor(goldBars / (BARS_PER_BOX * BOXES_PER_VAULT));
+      var box   = Math.floor((goldBars % (BARS_PER_BOX * BOXES_PER_VAULT)) / BARS_PER_BOX);
+      var bar   = goldBars % BARS_PER_BOX;
+      var label;
+      if(vault > 0)      label = vault > 99 ? '99+🏦' : vault + '🏦';
+      else if(box > 0)   label = box  > 99 ? '99+📦' : box  + '📦';
+      else               label = bar  > 99 ? '99+🪙' : bar  + '🪙';
+      goldbarBadge.textContent = label;
     } else {
       goldbarBadge.style.display = 'none';
     }
@@ -625,9 +633,23 @@
 
   function fmtJo(n){ return Math.floor(n).toLocaleString('en-US'); } // 조 단위 쉼표 포맷
 
+  // 금괴 계층: 금괴(1조) 1,000개 = 상자(1경), 상자 1,000개 = 금고(1해)
+  function fmtGoldBars(bars){
+    var BARS_PER_BOX  = 1000; // 금괴 1,000개 = 상자 1개
+    var BOXES_PER_VAULT = 1000; // 상자 1,000개 = 금고 1개
+    var vault = Math.floor(bars / (BARS_PER_BOX * BOXES_PER_VAULT));
+    var remainder = bars % (BARS_PER_BOX * BOXES_PER_VAULT);
+    var box  = Math.floor(remainder / BARS_PER_BOX);
+    var bar  = remainder % BARS_PER_BOX;
+    var parts = [];
+    if(vault > 0) parts.push('🏦 금고 ' + vault.toLocaleString('en-US') + '개');
+    if(box  > 0) parts.push('📦 상자 ' + box.toLocaleString('en-US') + '개');
+    if(bar  > 0 || parts.length === 0) parts.push('🪙 금괴 ' + bar.toLocaleString('en-US') + '개');
+    return parts.join(' &nbsp; ');
+  }
+
   function refreshModalInfo(){
-    modalGoldCount.textContent = goldBars.toLocaleString('en-US');
-    modalGoldWorth.textContent = goldBars.toLocaleString('en-US');
+    modalGoldCount.innerHTML = fmtGoldBars(goldBars);
     var availJoEl = document.getElementById('depositAvailJo');
     if(availJoEl){
       var jo = Math.floor(coins / GOLD_UNIT);
@@ -635,7 +657,7 @@
     }
     var availBarsEl = document.getElementById('withdrawAvailBars');
     if(availBarsEl){
-      availBarsEl.textContent = goldBars.toLocaleString('en-US') + ' 개';
+      availBarsEl.innerHTML = fmtGoldBars(goldBars);
     }
   }
 
@@ -725,11 +747,10 @@
     var needed = bars * GOLD_UNIT;
     if(bars < 1 || needed > coins) return;
     goldBars += bars; saveGold(); updateGoldBadge();
-    setCoins(coins - needed);
-    refreshModalInfo();
     depositInput.value = '';
     depositResult.innerHTML = '✅ 금괴&nbsp;<strong>' + bars.toLocaleString('en-US') + '</strong>&nbsp;개 저장 완료!';
     depositConfirm.disabled = true;
+    setCoins(coins - needed, function(){ refreshModalInfo(); });
   });
 
   // 출금 계산 (입력값 = 금괴 수)
@@ -751,11 +772,10 @@
     var bars = Math.floor(parseFloat(withdrawInput.value) || 0);
     if(bars < 1 || bars > goldBars) return;
     goldBars -= bars; saveGold(); updateGoldBadge();
-    setCoins(coins + bars * GOLD_UNIT);
-    refreshModalInfo();
     withdrawInput.value = '';
     withdrawResult.innerHTML = '✅ <strong>' + bars.toLocaleString('en-US') + '</strong> 개 출금, 코인 충전 완료!';
     withdrawConfirm.disabled = true;
+    setCoins(coins + bars * GOLD_UNIT, function(){ refreshModalInfo(); });
   });
 
   updateGoldBadge();
